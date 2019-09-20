@@ -1,0 +1,16 @@
+{
+    "editor.codeActionsOnSave": {
+        "source.fixAll.tslint": true
+    },
+    "mocha.requires": [
+        "ts-node/register"
+    ],
+    "mocha.files.glob": "test/**/*.spec.ts",
+    "mocha.logVerbose": true,
+    "mocha.sideBarOptions": {
+        "lens": true,
+        "decoration": true,
+        "autoUpdateTime": 2000,
+        "showDebugTestStatus": true
+    }
+}
