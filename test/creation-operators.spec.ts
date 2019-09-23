@@ -30,6 +30,34 @@ describe('from usuage', function() {
             done();
         });
     });
+    it('from could emit string as a sequence of characters', (done) => {
+        const source = 'Hello World';
+        let index = 0;
+        from(source).subscribe((item) => {
+            expect(item).to.equal(source.charAt(index));
+            index += 1;
+        }, done, done);
+    });
+    it('from could convert a promise to observable', (done) => {
+        const source = 'Hello World';
+        const observableFromPromise = from(new Promise((resolve) => resolve(source)));
+        observableFromPromise.subscribe((res) => {
+            expect(res).to.equal(source);
+            done();
+        });
+    });
+    it('from could convert map to observable', (done) => {
+        const source1 = [1, 'Hello'];
+        const source2 = [2, 'World'];
+        const map = new Map();
+        map.set(1, 'Hello');
+        map.set(2, 'World');
+        let index = 0;
+        from(map).subscribe((item) => {
+            expect(item).to.eql(index === 0 ? source1 : source2);
+            index += 1;
+        }, done, done);
+    });
 });
 
 describe('of usuage', function() {
