@@ -1,6 +1,6 @@
 import 'jsdom-global/register';
 import * as sinon from 'sinon';
-import { fromEvent, from, of, Observable, defer, empty } from 'rxjs';
+import { fromEvent, from, of, Observable, defer, empty, generate, interval, range, throwError, timer } from 'rxjs';
 import { ajax } from 'rxjs/ajax';
 import { expect, assert } from 'chai';
 import { describe, it, before, after } from 'mocha';
@@ -203,5 +203,114 @@ describe('empty usuage', function() {
             next: mockNextFunc,
             complete: mockCompleteFunc,
         });
+    });
+});
+
+describe('generate usuage', function() {
+    this.timeout(10000);
+    it('generate should terminate after reach predicate condition', function(done) {
+        const fakeFunc = sinon.fake();
+        generate(2, (x) => x <= 8, (x) => x + 3).subscribe((item) => {
+            fakeFunc(item);
+        }, done, () => {
+            expect(fakeFunc.lastCall.lastArg).to.equal(8);
+            expect(fakeFunc.callCount).to.equal(3);
+            done();
+        });
+    });
+    it('generate could execute something before emit', function(done) {
+        const fakeFunc = sinon.fake();
+        generate(2, (x) => x <= 8, (x) => x + 3, (x) => '*'.repeat(x)).subscribe((item) => {
+            fakeFunc(item);
+        }, done, () => {
+            expect(fakeFunc.firstCall.lastArg).to.equal('*'.repeat(2));
+            expect(fakeFunc.lastCall.lastArg).to.equal('*'.repeat(8));
+            expect(fakeFunc.callCount).to.equal(3);
+            done();
+        });
+    });
+});
+
+describe('interval usuage', function() {
+    this.timeout(5000);
+    it('interval could emit sequence of values at specified interval', function(done) {
+        let index = 0;
+        const subscriber = interval(1000).subscribe((item) => {
+            expect(item).to.equal(index);
+            index += 1;
+        });
+        setTimeout(() => {
+            subscriber.unsubscribe();
+            done();
+        }, 3000);
+    });
+});
+
+describe('range usuage', function() {
+    this.timeout(5000);
+    it('range emit a sequence of number by a range', function(done) {
+        const fakeFunc = sinon.fake();
+        // from 5, 10 times. in other words, [5, 15) or [5, 14]
+        range(5, 10).subscribe((item) => {
+            fakeFunc(item);
+        }, done, () => {
+            assert.strictEqual(fakeFunc.callCount, 10);
+            expect(fakeFunc.firstCall.lastArg).to.equal(5);
+            expect(fakeFunc.lastCall.lastArg).to.equal(10 + 5 - 1);
+            done();
+        });
+    });
+});
+
+describe('throwError usuage', function() {
+    this.timeout(5000);
+    it('throwError emit error directly, even complete will not be trigger', function(done) {
+        const nextMockFunc = sinon.mock().never();
+        const completeMockFunc = sinon.mock().never();
+        const errorFakeFunc = sinon.fake();
+        const subscriber = throwError('Error Message').subscribe({
+            next: nextMockFunc,
+            error: errorFakeFunc,
+            complete: completeMockFunc,
+        });
+        setTimeout(() => {
+            subscriber.unsubscribe();
+            completeMockFunc.verify();
+            nextMockFunc.verify();
+            expect(errorFakeFunc.lastCall.lastArg).to.equal('Error Message');
+            done();
+        }, 1500);
+    });
+});
+
+describe('timer usuage', function() {
+    this.timeout(10000);
+    it('timer only emit once with only one paramter', function(done) {
+        const mockFunc = sinon.mock().exactly(1);
+        timer(1000).subscribe((item) => {
+            mockFunc();
+            expect(item).to.equal(0);
+        }, done, done);
+    });
+    // tslint:disable-next-line: max-line-length
+    it('timer emit first after delay(first argument) and emit subsequent values every period(second argument)', function(done) {
+        let curTimeStamp = new Date().getTime();
+        let index = 0;
+        const subscriber = timer(1000, 2000).subscribe((item) => {
+            const timeStamp = new Date().getTime();
+            if (index === 0) {
+                // emit first after delay(first arguemnt, 1000 ms here)
+                expect(timeStamp - curTimeStamp).to.be.closeTo(1000, 20);
+            } else {
+                // emit subsequent values every period(second argument, 2000 ms here)
+                expect(timeStamp - curTimeStamp).to.be.closeTo(2000, 20);
+            }
+            curTimeStamp = timeStamp;
+            index ++;
+        });
+        setTimeout(() => {
+            subscriber.unsubscribe();
+            done();
+        }, 8000);
     });
 });
