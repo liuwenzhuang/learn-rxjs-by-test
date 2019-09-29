@@ -1,8 +1,26 @@
 import * as sinon from 'sinon';
 import { expect, assert } from 'chai';
 import { describe, it, before, after } from 'mocha';
-import { combineLatest, of, timer, Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { combineLatest, of, timer, Observable, from } from 'rxjs';
+import { map, startWith } from 'rxjs/operators';
+
+describe('startWith usuage', function() {
+    this.timeout(3000);
+    it('startWith will emit before source observables', function(done) {
+        const source = of(1, 2, 3);
+        let index = 0;
+        source.pipe(startWith(0)).subscribe((item) => {
+            expect(item).to.equal(index ++);
+        }, done, done);
+    });
+    it('startWith could emit multi values before source observables', function(done) {
+        const source = from([1, 2, 3]);
+        let index = -3;
+        source.pipe(startWith(-3, -2, -1, 0)).subscribe((item) => {
+            expect(item).to.equal(index ++);
+        }, done, done);
+    });
+});
 
 describe('combineLatest usuage', function() {
     this.timeout(9000);
