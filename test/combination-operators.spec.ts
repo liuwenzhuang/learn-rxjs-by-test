@@ -1,17 +1,26 @@
 import * as sinon from 'sinon';
 import { expect, assert } from 'chai';
 import { describe, it, before, after } from 'mocha';
-import { combineLatest, of, timer, Observable, from } from 'rxjs';
-import { map, startWith } from 'rxjs/operators';
+import { combineLatest, of, timer, Observable, from, concat, interval } from 'rxjs';
+import { map, startWith, endWith, concatAll, take } from 'rxjs/operators';
 
-describe('startWith usuage', function() {
+describe('startWith、endWith usage', function() {
     this.timeout(3000);
-    it('startWith will emit before source observables', function(done) {
+    it('startWith/endWith will emit before/after source observables', function(done) {
         const source = of(1, 2, 3);
-        let index = 0;
-        source.pipe(startWith(0)).subscribe((item) => {
-            expect(item).to.equal(index ++);
-        }, done, done);
+        let startIndex = 0;
+        let endIndex = 1;
+        const startObserver = source.pipe(startWith(0)).subscribe((item) => {
+            expect(item).to.equal(startIndex ++);
+        });
+        const endObserver = source.pipe(endWith(4)).subscribe((item) => {
+            expect(item).to.equal(endIndex ++);
+        });
+        setTimeout(() => {
+            startObserver.unsubscribe();
+            endObserver.unsubscribe();
+            done();
+        }, 2000);
     });
     it('startWith could emit multi values before source observables', function(done) {
         const source = from([1, 2, 3]);
@@ -22,7 +31,75 @@ describe('startWith usuage', function() {
     });
 });
 
-describe('combineLatest usuage', function() {
+describe('concat usage', function() {
+    this.timeout(8000);
+    it('concat work likes queues, one by one', function(done) {
+        const observable01 = of(1, 2, 3);
+        const observable02 = of(4, 5, 6);
+        const observable03 = of(7, 8, 9);
+        let index = 1;
+        concat(observable01, observable02, observable03).subscribe((item) => {
+            expect(item).to.equal(index ++);
+        }, done, done);
+    });
+    it('subsequent observables will not run before previous observable', function(done) {
+        const observable01 = interval(1000);  // will never complete
+        const observable02 = of(-3, -2, -1);
+        const subscriber = concat(observable01, observable02).subscribe((item) => {
+            expect(item).to.least(0);
+        });
+        setTimeout(() => {
+            subscriber.unsubscribe();
+            done();
+        }, 4000);
+    });
+});
+
+describe('concatAll usage', function() {
+    this.timeout(20000);
+    it('concatAll colud flatten observables from inner observable', function(done) {
+        let index = 2;
+        of(1, 2, 3).pipe(
+            map((item) => of(item + 1)),    // inner observable also emit observable
+            concatAll()
+        ).subscribe((item) => {
+            expect(item).to.equal(index ++);
+        }, done, done);
+    });
+    it('concatAll also could flatten promises from inner observable', function(done) {
+        const echoPromise = (value) => new Promise((resolve) => resolve(value));
+        let index = 1;
+        of(1, 2, 3).pipe(
+            map((item) => echoPromise(item)),
+            concatAll()
+        ).subscribe((item) => {
+            expect(item).to.equal(index ++);
+        }, done, done);
+    });
+    it('concatAll subscribe next inner observable after previous inner observable complete', function(done) {
+        // observable01: ----0----1----2----3----4
+                                 // observable02: --0--1
+                                       // observable03: --------0
+        const observable01 = interval(1000).pipe(take(5));
+        const observable02 = interval(500).pipe(take(2));
+        const observable03 = interval(2000).pipe(take(1));
+        let count = 0;
+        of(observable01, observable02, observable03).pipe( // emit observables
+            concatAll()
+        ).subscribe((item) => {
+            if (count >= 7) {
+                expect(item).equal(count - 7);
+            } else if (count >= 5) {
+                expect(item).equal(count - 5);
+            } else {
+                expect(item).equal(count);
+            }
+            count ++;
+        }, done, done);
+    });
+});
+
+describe('combineLatest usage', function() {
     this.timeout(9000);
     it('combineLatest will actually wait for all input Observables to emit at least once, before it starts emitting results', function(done) {
         const curTimeStamp = new Date().getTime();
