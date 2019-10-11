@@ -1,7 +1,7 @@
 import * as sinon from 'sinon';
 import { expect, assert } from 'chai';
 import { describe, it, before, after } from 'mocha';
-import { combineLatest, of, timer, Observable, from, concat, interval } from 'rxjs';
+import { combineLatest, of, timer, Observable, from, concat, interval, forkJoin } from 'rxjs';
 import { map, startWith, endWith, concatAll, take } from 'rxjs/operators';
 
 describe('startWith、endWith usage', function() {
@@ -22,12 +22,54 @@ describe('startWith、endWith usage', function() {
             done();
         }, 2000);
     });
-    it('startWith could emit multi values before source observables', function(done) {
+    it('startWith/endWith could emit multi values before/after source observables', function(done) {
         const source = from([1, 2, 3]);
-        let index = -3;
-        source.pipe(startWith(-3, -2, -1, 0)).subscribe((item) => {
-            expect(item).to.equal(index ++);
+        let startIndex = -3;
+        let endIndex = 1;
+        const startObserver = source.pipe(startWith(-3, -2, -1, 0)).subscribe((item) => {
+            expect(item).to.equal(startIndex ++);
         }, done, done);
+        const endObserver = source.pipe(endWith(4, 5, 6)).subscribe((item) => {
+            expect(item).to.equal(endIndex ++);
+        });
+        setTimeout(() => {
+            startObserver.unsubscribe();
+            endObserver.unsubscribe();
+            done();
+        });
+    });
+});
+
+describe('forkJoin usage', function() {
+    this.timeout(8000);
+    it('forkJoin only concern last values from observables', function(done) {
+        const observable01 = of(1, 2, 3);
+        const observable02 = Promise.resolve(4);
+        forkJoin([observable01, observable02]).subscribe((list) => {
+            expect(list).to.eql([3, 4]);
+        });
+        forkJoin({
+            result01: observable01,
+            result02: observable02
+        }).subscribe((resultObj) => {
+            expect(resultObj).to.eql({
+                result01: 3,
+                result02: 4
+            });
+        }, done, done);
+    });
+    it('forkJoin will not emit anything if part of sources not end', function(done) {
+        const observable01 = interval(1000);  // will not end
+        const observable02 = of(-3, -2, -1);
+        const mockFunc = sinon.mock().never();
+        const neverEmit = forkJoin([observable01, observable02]).subscribe((list) => {
+            mockFunc(list);
+        });
+        setTimeout(() => {
+            neverEmit.unsubscribe();
+            mockFunc.verify();
+            done();
+        }, 7000);
     });
 });
 
