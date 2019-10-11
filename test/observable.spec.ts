@@ -4,7 +4,7 @@ import { take } from 'rxjs/operators';
 import { expect, assert } from 'chai';
 import { describe, it, beforeEach, afterEach } from 'mocha';
 
-describe(`Observable usuage`, function() {
+describe(`Observable usage`, function() {
     let testObservable: Observable<number>;
     let completeFunc;
     let nextFunc;

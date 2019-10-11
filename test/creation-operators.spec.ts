@@ -5,7 +5,7 @@ import { ajax } from 'rxjs/ajax';
 import { expect, assert } from 'chai';
 import { describe, it, before, after } from 'mocha';
 
-describe('fromEvent usuage', function() {
+describe('fromEvent usage', function() {
     this.timeout(5000);
     it('fromEvent could convert event to Observable', function(done) {
         const button = document.createElement('button');
@@ -20,7 +20,7 @@ describe('fromEvent usuage', function() {
     });
 });
 
-describe('from usuage', function() {
+describe('from usage', function() {
     it('from could emit array as a sequence of values', (done) => {
         let count = 0;
         from([1, 2, 3, 4]).subscribe((item: number) => {
@@ -60,7 +60,7 @@ describe('from usuage', function() {
     });
 });
 
-describe('of usuage', function() {
+describe('of usage', function() {
     it('of delevier values in sequence', (done) => {
         let count = 0;
         of(1, 2, 3, 4).subscribe((item) => {
@@ -72,7 +72,7 @@ describe('of usuage', function() {
     });
 });
 
-describe('rxjs/ajax usuage', function() {
+describe('rxjs/ajax usage', function() {
     this.timeout(10000);
     const url = `https://api.github.com/users?per_page=2`;
     it('ajax could receive url and fetch response object', (done) => {
@@ -96,7 +96,7 @@ describe('rxjs/ajax usuage', function() {
             expect(res.status).to.equal(200);
         }, done, done);
     });
-    describe('ajax.getJSON usuage', function() {
+    describe('ajax.getJSON usage', function() {
         let mockFunc: sinon.SinonExpectation;
         before(function() {
             mockFunc = sinon.mock().never();
@@ -121,7 +121,7 @@ describe('rxjs/ajax usuage', function() {
     });
 });
 
-describe('Observable constructor usuage', function() {
+describe('Observable constructor usage', function() {
     this.timeout(10000);
     let fakeFunc: sinon.SinonSpy;
     let mockFunc: sinon.SinonExpectation;
@@ -169,7 +169,7 @@ describe('Observable constructor usuage', function() {
     });
 });
 
-describe('defer usuage', function() {
+describe('defer usage', function() {
     this.timeout(10000);
     it('defer could delay retrive operators of Observable util subscribed', function(done) {
         const s1 = of(new Date().getTime());  // current date time
@@ -187,7 +187,7 @@ describe('defer usuage', function() {
     });
 });
 
-describe('empty usuage', function() {
+describe('empty usage', function() {
     let mockNextFunc: sinon.SinonExpectation;
     let mockCompleteFunc: sinon.SinonExpectation;
     before(function() {
@@ -206,7 +206,7 @@ describe('empty usuage', function() {
     });
 });
 
-describe('generate usuage', function() {
+describe('generate usage', function() {
     this.timeout(10000);
     it('generate should terminate after reach predicate condition', function(done) {
         const fakeFunc = sinon.fake();
@@ -231,7 +231,7 @@ describe('generate usuage', function() {
     });
 });
 
-describe('interval usuage', function() {
+describe('interval usage', function() {
     this.timeout(5000);
     it('interval could emit sequence of values at specified interval', function(done) {
         let index = 0;
@@ -246,7 +246,7 @@ describe('interval usuage', function() {
     });
 });
 
-describe('range usuage', function() {
+describe('range usage', function() {
     this.timeout(5000);
     it('range emit a sequence of number by a range', function(done) {
         const fakeFunc = sinon.fake();
@@ -262,7 +262,7 @@ describe('range usuage', function() {
     });
 });
 
-describe('throwError usuage', function() {
+describe('throwError usage', function() {
     this.timeout(5000);
     it('throwError emit error directly, even complete will not be trigger', function(done) {
         const nextMockFunc = sinon.mock().never();
@@ -283,7 +283,7 @@ describe('throwError usuage', function() {
     });
 });
 
-describe('timer usuage', function() {
+describe('timer usage', function() {
     this.timeout(10000);
     it('timer only emit once with only one paramter', function(done) {
         const mockFunc = sinon.mock().exactly(1);

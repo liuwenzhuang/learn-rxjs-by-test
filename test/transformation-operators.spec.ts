@@ -4,7 +4,7 @@ import { describe, it } from 'mocha';
 import { scan, take } from 'rxjs/operators';
 import { of, interval } from 'rxjs';
 
-describe('scan usuage', function() {
+describe('scan usage', function() {
     this.timeout(6000);
     it('basic: scan could sum over time', function(done) {
         const source = [1, 2, 3];
