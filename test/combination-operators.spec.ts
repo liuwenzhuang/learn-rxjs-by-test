@@ -1,8 +1,9 @@
+import 'jsdom-global/register';
 import * as sinon from 'sinon';
 import { expect, assert } from 'chai';
 import { describe, it, before, after } from 'mocha';
-import { combineLatest, of, timer, Observable, from, concat, interval, forkJoin } from 'rxjs';
-import { map, startWith, endWith, concatAll, take } from 'rxjs/operators';
+import { combineLatest, of, timer, Observable, from, concat, interval, forkJoin, throwError, merge, fromEvent } from 'rxjs';
+import { map, startWith, endWith, concatAll, take, catchError, mergeAll } from 'rxjs/operators';
 
 describe('startWith、endWith usage', function() {
     this.timeout(3000);
@@ -11,10 +12,10 @@ describe('startWith、endWith usage', function() {
         let startIndex = 0;
         let endIndex = 1;
         const startObserver = source.pipe(startWith(0)).subscribe((item) => {
-            expect(item).to.equal(startIndex ++);
+            expect(item).to.equal(startIndex++);
         });
         const endObserver = source.pipe(endWith(4)).subscribe((item) => {
-            expect(item).to.equal(endIndex ++);
+            expect(item).to.equal(endIndex++);
         });
         setTimeout(() => {
             startObserver.unsubscribe();
@@ -27,10 +28,10 @@ describe('startWith、endWith usage', function() {
         let startIndex = -3;
         let endIndex = 1;
         const startObserver = source.pipe(startWith(-3, -2, -1, 0)).subscribe((item) => {
-            expect(item).to.equal(startIndex ++);
+            expect(item).to.equal(startIndex++);
         }, done, done);
         const endObserver = source.pipe(endWith(4, 5, 6)).subscribe((item) => {
-            expect(item).to.equal(endIndex ++);
+            expect(item).to.equal(endIndex++);
         });
         setTimeout(() => {
             startObserver.unsubscribe();
@@ -45,7 +46,7 @@ describe('forkJoin usage', function() {
     it('forkJoin only concern last values from observables', function(done) {
         const observable01 = of(1, 2, 3);
         const observable02 = Promise.resolve(4);
-        forkJoin([observable01, observable02]).subscribe((list) => {
+        forkJoin(observable01, observable02).subscribe((list) => {
             expect(list).to.eql([3, 4]);
         });
         forkJoin({
@@ -71,6 +72,16 @@ describe('forkJoin usage', function() {
             done();
         }, 7000);
     });
+    it('forkJoin could catch errors from inner sources outside', function(done) {
+        const catchOutside = forkJoin(
+            throwError('first error'),
+            of(1, 2, 3),
+            throwError('error from inner source')
+        ).pipe(catchError((err) => of(err)));    // only receive first error from inner sources
+        catchOutside.subscribe((item) => {
+            expect(item).to.equal('first error');
+        }, done, done);
+    });
 });
 
 describe('concat usage', function() {
@@ -81,7 +92,7 @@ describe('concat usage', function() {
         const observable03 = of(7, 8, 9);
         let index = 1;
         concat(observable01, observable02, observable03).subscribe((item) => {
-            expect(item).to.equal(index ++);
+            expect(item).to.equal(index++);
         }, done, done);
     });
     it('subsequent observables will not run before previous observable', function(done) {
@@ -105,7 +116,7 @@ describe('concatAll usage', function() {
             map((item) => of(item + 1)),    // inner observable also emit observable
             concatAll()
         ).subscribe((item) => {
-            expect(item).to.equal(index ++);
+            expect(item).to.equal(index++);
         }, done, done);
     });
     it('concatAll also could flatten promises from inner observable', function(done) {
@@ -115,13 +126,13 @@ describe('concatAll usage', function() {
             map((item) => echoPromise(item)),
             concatAll()
         ).subscribe((item) => {
-            expect(item).to.equal(index ++);
+            expect(item).to.equal(index++);
         }, done, done);
     });
     it('concatAll subscribe next inner observable after previous inner observable complete', function(done) {
         // observable01: ----0----1----2----3----4
-                                 // observable02: --0--1
-                                       // observable03: --------0
+        // observable02:                          --0--1
+        // observable03:                                --------0
         const observable01 = interval(1000).pipe(take(5));
         const observable02 = interval(500).pipe(take(2));
         const observable03 = interval(2000).pipe(take(1));
@@ -136,8 +147,72 @@ describe('concatAll usage', function() {
             } else {
                 expect(item).equal(count);
             }
-            count ++;
+            count++;
         }, done, done);
+    });
+});
+
+describe('merge usage', function() {
+    this.timeout(9000);
+    it('merge does not concern order and emit when part of sources emit', function(done) {
+        const observable01 = interval(500).pipe(map((item) => `observable01.${item}`), take(4));  // --0--1--2--3
+        const observable02 = interval(1000).pipe(map((item) => `observable02.${item}`), take(2)); // ----0----1
+        const observable03 = interval(2000).pipe(map((item) => `observable03.${item}`), take(1)); // --------0
+        const fakeFunc = sinon.fake();
+        merge(
+            observable01,
+            observable02,
+            observable03
+        ).subscribe((item) => {
+            fakeFunc(item);
+        }, done, () => {
+            expect(fakeFunc.callCount).to.equal(7);
+            expect(fakeFunc.firstCall.lastArg).to.equal('observable01.0');
+            expect(fakeFunc.getCall(1).lastArg).to.equal('observable02.0');
+            done();
+        });
+    });
+});
+
+describe('mergeAll usuage', function() {
+    this.timeout(30000);
+    it('mergeAll could flatten high-order observables', function(done) {
+        const observable = of(1, 2, 3);
+        // high-order observables mean result in observable, not plain data
+        const highOrder = observable.pipe(map((item) => of(item + 1)));
+        const flatten = highOrder.pipe(mergeAll()); // emit 2 3 4
+        let index = 2;
+        flatten.subscribe((item) => {
+            expect(item).to.equal(index++);
+        }, done, done);
+    });
+    // tslint:disable-next-line: max-line-length
+    it(`mergeAll could receive param to control maximum number of inner Observables being subscribed to concurrently`, function(done) {
+        const sourceObservable = fromEvent(document, 'click');
+        const hightOrderObservable = sourceObservable.pipe(  // every click triggers --0--1--2--3--4
+            map(
+                (event) => interval(1000).pipe(take(5))
+            )
+        );
+        // only subscribe one click event in same time
+        const flattenObservable = hightOrderObservable.pipe(mergeAll(1));
+        let index = 0;
+        const observer = flattenObservable.subscribe((item) => {
+            expect(item).to.equal(index);
+            index ++;
+            // previous click done, handle next click(maybe triggered during previous click)
+            if (index === 5) {
+                index = 0;
+            }
+        });
+        // click body three times
+        document.body.click();
+        document.body.click();
+        document.body.click();
+        setTimeout(() => {
+            observer.unsubscribe();
+            done();
+        }, 20000);
     });
 });
 
