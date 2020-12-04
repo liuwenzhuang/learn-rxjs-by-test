@@ -1,6 +1,6 @@
 import { expect } from 'chai';
-import { timer } from 'rxjs';
-import { delay, filter, map, take, takeUntil, throttleTime } from 'rxjs/operators';
+import { EMPTY, timer } from 'rxjs';
+import { delay, filter, map, switchMap, take, takeUntil, throttleTime } from 'rxjs/operators';
 import { TestScheduler } from 'rxjs/testing';
 
 describe('marble test use TestScheduler', () => {
@@ -77,6 +77,31 @@ describe('marble test use TestScheduler', () => {
       // timer(0, 2)的序列： *.*.*.*
       // take(4) 使得在第四个值产生同时流结束
       expectObservable(timer(0, 2).pipe(take(4))).toBe('a-b-c-(d|)', values);
+    });
+  });
+
+  it('test EMPTY takes up frame', () => {
+    testScheduler.run(({ expectObservable }) => {
+      expectObservable(EMPTY).toBe('|');
+    });
+  });
+
+  it('switchMap should cancel previous inner subscription', () => {
+    testScheduler.run(({ expectObservable, cold }) => {
+      const triggerObservable = cold('a-b-c-(d|)', {
+        a: 0,
+        b: 1,
+        c: 2,
+        d: null,
+      });
+      const subscription = triggerObservable.pipe(
+        switchMap((value) => {
+          return value === null ? EMPTY : timer(0, 3);
+        })
+      );
+      expectObservable(subscription).toBe('a-a-a-|', {
+        a: 0,
+      });
     });
   });
 
