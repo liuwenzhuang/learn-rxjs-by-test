@@ -7,6 +7,7 @@
     "test": "ts-mocha -p ./tsconfig.json ./test/**/*.spec.ts",
     "test-transformation": "ts-mocha -p ./tsconfig.json ./test/transformation-operators.spec.ts",
     "test-combination": "ts-mocha -p ./tsconfig.json ./test/combination-operators.spec.ts",
+    "test-observable": "ts-mocha -p ./tsconfig.json ./test/observable.spec.ts",
     "test-marble": "ts-mocha -p ./tsconfig.json ./test/marble-test.spec.ts"
   },
   "keywords": [],
