@@ -1,6 +1,17 @@
 import { expect } from 'chai';
-import { EMPTY, timer } from 'rxjs';
-import { delay, filter, map, switchMap, take, takeUntil, throttleTime } from 'rxjs/operators';
+import { EMPTY, interval, merge, of, timer } from 'rxjs';
+import {
+  delay,
+  exhaustMap,
+  filter,
+  map,
+  mergeMap,
+  repeat,
+  switchMap,
+  take,
+  takeUntil,
+  throttleTime,
+} from 'rxjs/operators';
 import { TestScheduler } from 'rxjs/testing';
 
 describe('marble test use TestScheduler', () => {
@@ -10,6 +21,7 @@ describe('marble test use TestScheduler', () => {
       expect(actual).deep.equal(expected);
     });
   });
+
   it('test throttleTime', () => {
     testScheduler.run((helpers) => {
       const { hot, expectObservable } = helpers;
@@ -31,6 +43,33 @@ describe('marble test use TestScheduler', () => {
         expectedMarbleVisual,
         values
       );
+    });
+  });
+
+  it('test merge and exhaustMap', () => {
+    const values = {
+      a: 1,
+      b: 2,
+      c: 3,
+      d: 4,
+    };
+    testScheduler.run(({ cold, expectObservable }) => {
+      const exhaustPreferInnerObservable = merge(
+        cold('-a-b-c-|', values),
+        cold('----------d-|', values)
+      ).pipe(
+        exhaustMap((value, index) => {
+          expect(index).to.lessThan(2);
+          if (index === 0) {
+            expect(value).to.equal(1);
+          }
+          if (index === 1) {
+            expect(value).to.equal(4);
+          }
+          return cold('--a-b-c-|', values);
+        })
+      );
+      expectObservable(exhaustPreferInnerObservable).toBe('---a-b-c----a-b-c-|', values);
     });
   });
 
@@ -105,6 +144,15 @@ describe('marble test use TestScheduler', () => {
     });
   });
 
+  it('repeat with delay', () => {
+    testScheduler.run(({ expectObservable }) => {
+      const observable = of('delayed value').pipe(delay(2), repeat(3));
+      expectObservable(observable).toBe('--a-a-(a|)', {
+        a: 'delayed value',
+      });
+    });
+  });
+
   it('test filter and map', () => {
     testScheduler.run(({ cold, expectObservable }) => {
       const values = {
@@ -125,6 +173,43 @@ describe('marble test use TestScheduler', () => {
         map((value) => value * 2)
       );
       expectObservable(fitlerMapObservable).toBe('-x---y---z-|', values);
+    });
+  });
+});
+
+describe('test flatten startegies with marble test', () => {
+  let testScheduler: TestScheduler;
+  const value = {
+    a: 0,
+    b: 1,
+    c: 2,
+  };
+  beforeEach(() => {
+    testScheduler = new TestScheduler((actual, expected) => {
+      expect(actual).deep.equal(expected);
+    });
+  });
+
+  it('test interval emit first after period', () => {
+    testScheduler.run(({ cold, expectObservable }) => {
+      const subscription = interval(2).pipe(take(2));
+      expectObservable(subscription).toBe('--a-(b|)', value);
+    });
+  });
+
+  it('mergeMap will do nothing but subscribe every new observable', () => {
+    testScheduler.run(({ cold, expectObservable }) => {
+      const subscription = interval(2).pipe(
+        take(2),
+        mergeMap((_, index) => {
+          // index:0 -a-b-c-|
+          // index:1 --a--b--c--|
+          const freeFrame = '-'.repeat(index + 1);
+          const marbles = `${freeFrame}a${freeFrame}b${freeFrame}c${freeFrame}|`;
+          return cold(marbles, value);
+        })
+      );
+      expectObservable(subscription).toBe('---a-bac-b--c--|', value);
     });
   });
 });
