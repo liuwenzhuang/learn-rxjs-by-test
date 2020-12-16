@@ -1,15 +1,13 @@
 {
-    "defaultSeverity": "error",
-    "extends": [
-        "tslint:recommended"
-    ],
-    "rules": {
-        "ordered-imports": false,
-        "quotemark": false,
-        "only-arrow-functions": false,
-        "no-console": false,
-        "no-empty": false,
-        "object-literal-sort-keys": false,
-        "trailing-comma": false
-    }
+  "defaultSeverity": "error",
+  "extends": ["tslint:recommended", "tslint-config-prettier"],
+  "rules": {
+    "ordered-imports": false,
+    "quotemark": false,
+    "only-arrow-functions": false,
+    "no-console": false,
+    "no-empty": false,
+    "object-literal-sort-keys": false,
+    "trailing-comma": false
+  }
 }
