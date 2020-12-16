@@ -1,6 +1,7 @@
 import { expect } from 'chai';
-import { EMPTY, interval, merge, of, timer } from 'rxjs';
+import { EMPTY, interval, of, timer } from 'rxjs';
 import {
+  concatMap,
   delay,
   exhaustMap,
   filter,
@@ -22,54 +23,29 @@ describe('marble test use TestScheduler', () => {
     });
   });
 
+  it('test interval emit first after period', () => {
+    testScheduler.run(({ cold, expectObservable }) => {
+      const subscription = interval(2).pipe(take(2));
+      expectObservable(subscription).toBe('--a-(b|)', {
+        a: 0,
+        b: 1,
+      });
+    });
+  });
+
   it('test throttleTime', () => {
-    testScheduler.run((helpers) => {
-      const { hot, expectObservable } = helpers;
+    testScheduler.run(({ cold, expectObservable }) => {
       const values = {
         a: 'A',
         b: 'B',
         c: 'C',
       };
-      // “-” 称为一个虚拟时间片，一个“-”表示1ms
-      // “a-z”表示数据流出，-a--b---c 表示 2ms时a产生，5ms时b产生，9ms时c产生
-      // “|” 表示数据流的结束，---a-| 表示 4ms时a产生，6ms时数据流结束
-      // “#” 表示数据流出错，---a--# 表示 4ms时a产生，7ms时数据流出错
-      // “()” 表示多个值在同一个时间单位内会产生多个值， -(ab|) 表示 2ms时产生了 a和b，然后数据流结束
-      // “^” 表示订阅的节点，--^-- 表示 3ms时有个订阅者进来
-      // “!” 表示结束订阅的节点，--^--! 表示 3ms时有个订阅者进来，6ms时该订阅结束
-      const characterObservable$ = hot('-a--b--c---|', values);
+      const characterObservable$ = cold('-a--b--c---|', values);
       const expectedMarbleVisual = '-a-----c---|';
       expectObservable(characterObservable$.pipe(throttleTime(3, testScheduler))).toBe(
         expectedMarbleVisual,
         values
       );
-    });
-  });
-
-  it('test merge and exhaustMap', () => {
-    const values = {
-      a: 1,
-      b: 2,
-      c: 3,
-      d: 4,
-    };
-    testScheduler.run(({ cold, expectObservable }) => {
-      const exhaustPreferInnerObservable = merge(
-        cold('-a-b-c-|', values),
-        cold('----------d-|', values)
-      ).pipe(
-        exhaustMap((value, index) => {
-          expect(index).to.lessThan(2);
-          if (index === 0) {
-            expect(value).to.equal(1);
-          }
-          if (index === 1) {
-            expect(value).to.equal(4);
-          }
-          return cold('--a-b-c-|', values);
-        })
-      );
-      expectObservable(exhaustPreferInnerObservable).toBe('---a-b-c----a-b-c-|', values);
     });
   });
 
@@ -179,10 +155,11 @@ describe('marble test use TestScheduler', () => {
 
 describe('test flatten startegies with marble test', () => {
   let testScheduler: TestScheduler;
-  const value = {
+  const values = {
     a: 0,
     b: 1,
     c: 2,
+    d: 3,
   };
   beforeEach(() => {
     testScheduler = new TestScheduler((actual, expected) => {
@@ -190,26 +167,43 @@ describe('test flatten startegies with marble test', () => {
     });
   });
 
-  it('test interval emit first after period', () => {
+  it('mergeMap will do nothing but subscribe every new observable', () => {
     testScheduler.run(({ cold, expectObservable }) => {
-      const subscription = interval(2).pipe(take(2));
-      expectObservable(subscription).toBe('--a-(b|)', value);
+      const outterObservable = cold('a-b-|', values);
+      const innerObservable = cold('--c--d-|', values);
+      const concatObservable = outterObservable.pipe(mergeMap(() => innerObservable));
+      // just subscribe to all observables
+      expectObservable(concatObservable).toBe('--c-cd-d-|', values);
     });
   });
 
-  it('mergeMap will do nothing but subscribe every new observable', () => {
+  it('concatMap will keep order and handle next observable only after current observable is done', () => {
     testScheduler.run(({ cold, expectObservable }) => {
-      const subscription = interval(2).pipe(
-        take(2),
-        mergeMap((_, index) => {
-          // index:0 -a-b-c-|
-          // index:1 --a--b--c--|
-          const freeFrame = '-'.repeat(index + 1);
-          const marbles = `${freeFrame}a${freeFrame}b${freeFrame}c${freeFrame}|`;
-          return cold(marbles, value);
-        })
-      );
-      expectObservable(subscription).toBe('---a-bac-b--c--|', value);
+      const outterObservable = cold('a-b-|', values);
+      const innerObservable = cold('--c--d-|', values);
+      const concatObservable = outterObservable.pipe(concatMap(() => innerObservable));
+      // keep observable order, b after a
+      expectObservable(concatObservable).toBe('--c--d---c--d-|', values);
+    });
+  });
+
+  it('switchMap will cancel current observable when other observable come', () => {
+    testScheduler.run(({ cold, expectObservable }) => {
+      const outterObservable = cold('a---b-|', values);
+      const innerObservable = cold('--c--d-|', values);
+      const concatObservable = outterObservable.pipe(switchMap(() => innerObservable));
+      // cut off a's trigger and response to b's trigger
+      expectObservable(concatObservable).toBe('--c---c--d-|', values);
+    });
+  });
+
+  it('exhaustMap will ignore other observable until current observable is done', () => {
+    testScheduler.run(({ cold, expectObservable }) => {
+      const outterObservable = cold('a-b-----c-|', values);
+      const innerObservable = cold('--c--d-|', values);
+      const concatObservable = outterObservable.pipe(exhaustMap(() => innerObservable));
+      // ignore b's trigger
+      expectObservable(concatObservable).toBe('--c--d----c--d-|', values);
     });
   });
 });
