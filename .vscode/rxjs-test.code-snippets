@@ -21,6 +21,12 @@
     "body": ["${1:testScheduler}.run(({ cold, expectObservable }) => {", "\t$0", "});"],
     "description": "TestScheduler instance function"
   },
+  "describe": {
+    "scope": "javascript,typescript",
+    "prefix": ["desc", "describe"],
+    "body": ["describe('${1:test title}', () => {", "\t$0", "});"],
+    "description": "new test item"
+  },
   "it": {
     "scope": "javascript,typescript",
     "prefix": ["it"],

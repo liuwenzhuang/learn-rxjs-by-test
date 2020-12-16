@@ -8,7 +8,8 @@
     "test-transformation": "ts-mocha -p ./tsconfig.json ./test/transformation-operators.spec.ts",
     "test-combination": "ts-mocha -p ./tsconfig.json ./test/combination-operators.spec.ts",
     "test-observable": "ts-mocha -p ./tsconfig.json ./test/observable.spec.ts",
-    "test-marble": "ts-mocha -p ./tsconfig.json ./test/marble-test.spec.ts"
+    "test-marble": "ts-mocha -p ./tsconfig.json ./test/marble-test.spec.ts",
+    "test-error": "ts-mocha -p ./tsconfig.json ./test/error-handle.spec.ts"
   },
   "keywords": [],
   "author": "",
