@@ -1,8 +1,26 @@
 import { expect } from 'chai';
-import { interval, of, throwError } from 'rxjs';
-import { delay, finalize, mergeMap, retry, retryWhen, tap } from 'rxjs/operators';
+import { from, interval, of, throwError } from 'rxjs';
+import { catchError, delay, finalize, map, mergeMap, retry, retryWhen, tap } from 'rxjs/operators';
 
 describe('error handle with catchError, retry and so on', () => {
+  it('catchError will terminate source observable even return a new observable', () => {
+    let index = 0;
+    from(['a', null, 'b'])
+      .pipe(
+        map((x) => x.toUpperCase()),
+        catchError(() => of('END'))
+      )
+      .subscribe({
+        next: (value) => {
+          expect(value).to.equal(index === 0 ? 'A' : 'END');
+          index++;
+        },
+        complete: () => {
+          expect(index).to.equal(2);
+        },
+      });
+  });
+
   it('retry will retry observable when error occur', (done) => {
     const errorMsg = 'Greater than 3';
     const timer$ = interval(100).pipe(
