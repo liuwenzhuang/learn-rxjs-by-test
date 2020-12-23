@@ -23,6 +23,18 @@ describe('marble test use TestScheduler', () => {
     });
   });
 
+  it('test filter will keep orignial time points', () => {
+    testScheduler.run(({ cold, expectObservable }) => {
+      const values = {
+        a: 1,
+        b: 2,
+        c: 3,
+      };
+      const filterObservable$ = cold('-a--b--c-|', values).pipe(filter((value) => value !== 2));
+      expectObservable(filterObservable$).toBe('-a-----c-|', values);
+    });
+  });
+
   it('test interval emit first after period', () => {
     testScheduler.run(({ cold, expectObservable }) => {
       const subscription = interval(2).pipe(take(2));
