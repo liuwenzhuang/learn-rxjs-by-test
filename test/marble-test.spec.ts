@@ -1,6 +1,8 @@
 import { expect } from 'chai';
-import { EMPTY, interval, of, timer } from 'rxjs';
+import { EMPTY, interval, of, throwError, timer } from 'rxjs';
+import { ColdObservable } from 'rxjs/internal/testing/ColdObservable';
 import {
+  catchError,
   concatMap,
   delay,
   exhaustMap,
@@ -107,12 +109,6 @@ describe('marble test use TestScheduler', () => {
     });
   });
 
-  it('test EMPTY takes up frame', () => {
-    testScheduler.run(({ expectObservable }) => {
-      expectObservable(EMPTY).toBe('|');
-    });
-  });
-
   it('switchMap should cancel previous inner subscription', () => {
     testScheduler.run(({ expectObservable, cold }) => {
       const triggerObservable = cold('a-b-c-(d|)', {
@@ -161,6 +157,36 @@ describe('marble test use TestScheduler', () => {
         map((value) => value * 2)
       );
       expectObservable(fitlerMapObservable).toBe('-x---y---z-|', values);
+    });
+  });
+});
+
+describe('test special Observable with marble test', () => {
+  let testScheduler: TestScheduler;
+  beforeEach(() => {
+    testScheduler = new TestScheduler((actual, expected) => {
+      expect(actual).deep.equal(expected);
+    });
+  });
+
+  it('test EMPTY will fire complete directly', () => {
+    testScheduler.run(({ expectObservable }) => {
+      expectObservable(EMPTY).toBe('|');
+    });
+  });
+
+  it('test throwError will fire error directly', () => {
+    testScheduler.run(({ expectObservable }) => {
+      const errMsg = 'err from throwError';
+      expectObservable(throwError(errMsg)).toBe('#', undefined, errMsg);
+    });
+  });
+
+  it('test catchError will start a new Observable', () => {
+    testScheduler.run(({ cold, expectObservable }) => {
+      const marbleStr = '-a--b--c-|';
+      const observableWithCatchError$ = throwError('err').pipe(catchError(() => cold(marbleStr)));
+      expectObservable(observableWithCatchError$).toBe(marbleStr);
     });
   });
 });
