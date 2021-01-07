@@ -1,6 +1,5 @@
 import { expect } from 'chai';
-import { EMPTY, interval, of, throwError, timer } from 'rxjs';
-import { ColdObservable } from 'rxjs/internal/testing/ColdObservable';
+import { EMPTY, from, interval, of, throwError, timer } from 'rxjs';
 import {
   catchError,
   concatMap,
@@ -22,6 +21,16 @@ describe('marble test use TestScheduler', () => {
   beforeEach(() => {
     testScheduler = new TestScheduler((actual, expected) => {
       expect(actual).deep.equal(expected);
+    });
+  });
+
+  it('test from will emit all data in one time frame', () => {
+    testScheduler.run(({ cold, expectObservable }) => {
+      expectObservable(from([1, 2, 3])).toBe('(abc|)', {
+        a: 1,
+        b: 2,
+        c: 3,
+      });
     });
   });
 
