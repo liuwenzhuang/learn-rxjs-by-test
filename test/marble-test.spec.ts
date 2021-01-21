@@ -254,3 +254,42 @@ describe('test flatten startegies with marble test', () => {
     });
   });
 });
+
+describe('test hot observables', () => {
+  let testScheduler: TestScheduler;
+  beforeEach(() => {
+    testScheduler = new TestScheduler((actual, expected) => {
+      expect(actual).deep.equal(expected);
+    });
+  });
+  it('observers receive different values at different subscription time', () => {
+    testScheduler.run(({ hot, expectObservable }) => {
+      const hotObservable = hot('-a-b-c-d-e-f-g-h-i-');
+      const observer1 = '        --^-----------!';
+      const observer2 = '        -------^----!';
+      expectObservable(hotObservable, observer1).toBe('---b-c-d-e-f-g-');
+      expectObservable(hotObservable, observer2).toBe('-------d-e-f-');
+    });
+  });
+
+  it('expectSubscriptions just care test subscribe/unsubscribe time point', () => {
+    testScheduler.run(({ cold, hot, expectSubscriptions, expectObservable }) => {
+      const coldObservable = cold('-a--b--|');
+      const coldExpected = '       ^------!';
+      // 为了触发订阅、退订，下行代码是必要的，当然也可以使用 expectObservable 来帮我们隐式的订阅
+      coldObservable.subscribe();
+      expectSubscriptions(coldObservable.subscriptions).toBe(coldExpected);
+
+      const hotObservable01 = hot('-a--b--c-|');
+      const activeObserver = '     --^---!'; // 结束前主动退订
+      expectObservable(hotObservable01, activeObserver).toBe('----b--');
+      expectSubscriptions(hotObservable01.subscriptions).toBe(activeObserver);
+
+      const hotObservable02 = hot('--a-b--c-|');
+      const negativeObserver = '   --^--------!'; // 结束后再退订
+      const hotExpected = '        --^------!'; // 在结束时，已经退订了
+      expectObservable(hotObservable02, negativeObserver).toBe('--a-b--c-|');
+      expectSubscriptions(hotObservable02.subscriptions).toBe(hotExpected);
+    });
+  });
+});
