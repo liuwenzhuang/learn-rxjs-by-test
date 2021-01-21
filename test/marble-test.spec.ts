@@ -25,7 +25,7 @@ describe('marble test use TestScheduler', () => {
   });
 
   it('test from will emit all data in one time frame', () => {
-    testScheduler.run(({ cold, expectObservable }) => {
+    testScheduler.run(({ expectObservable }) => {
       expectObservable(from([1, 2, 3])).toBe('(abc|)', {
         a: 1,
         b: 2,
@@ -41,7 +41,7 @@ describe('marble test use TestScheduler', () => {
         b: 2,
         c: 3,
       };
-      const filterObservable$ = cold('-a--b--c-|', values).pipe(filter((value) => value !== 2));
+      const filterObservable$ = cold('          -a--b--c-|', values).pipe(filter((value) => value !== 2));
       expectObservable(filterObservable$).toBe('-a-----c-|', values);
     });
   });
@@ -64,7 +64,7 @@ describe('marble test use TestScheduler', () => {
         c: 'C',
       };
       const characterObservable$ = cold('-a--b--c---|', values);
-      const expectedMarbleVisual = '-a-----c---|';
+      const expectedMarbleVisual = '     -a-----c---|';
       expectObservable(characterObservable$.pipe(throttleTime(3, testScheduler))).toBe(
         expectedMarbleVisual,
         values
@@ -93,16 +93,15 @@ describe('marble test use TestScheduler', () => {
         c: 3,
         n: 0,
       };
-      const originObservable = cold('-a-b-c-|', values);
+      const originObservable = cold('  -a-b-c-|', values);
       const notifierObservable = cold('----n-|', values);
-      // takeUntil 的 notifier 在 5ms 时产生数据，此时 originObservable 产生了 '-a-b'，b 后的 “-”（5ms）
-      // 处不会被执行，因为 notifier 在同时产生数据，导致 notifier 和 originObservable 都结束
+      // takeUntil 的 notifier 在 5ms 时产生数据，此前 originObservable 产生了 '-a-b'，然后在 5ms 处结束
       const takeUntilObservable = originObservable.pipe(takeUntil(notifierObservable));
       expectObservable(takeUntilObservable).toBe('-a-b|', values);
     });
   });
 
-  it('test timer', () => {
+  it('test take', () => {
     testScheduler.run((helpers) => {
       const { expectObservable } = helpers;
       const values = {
@@ -112,7 +111,7 @@ describe('marble test use TestScheduler', () => {
         d: 3,
       };
       // * 表示产生数据的时间节点（每个占用1个时间片），. 表示空闲时间节点（每个占用1个时间片）
-      // timer(0, 2)的序列： *.*.*.*
+      // timer(0, 2)的序列： a-b-c-d
       // take(4) 使得在第四个值产生同时流结束
       expectObservable(timer(0, 2).pipe(take(4))).toBe('a-b-c-(d|)', values);
     });
@@ -217,17 +216,17 @@ describe('test flatten startegies with marble test', () => {
   it('mergeMap will do nothing but subscribe every new observable', () => {
     testScheduler.run(({ cold, expectObservable }) => {
       const outterObservable = cold('a-b-|', values);
-      const innerObservable = cold('--c--d-|', values);
-      const concatObservable = outterObservable.pipe(mergeMap(() => innerObservable));
+      const innerObservable = cold(' --c--d-|', values);
+      const mergeMapObservable = outterObservable.pipe(mergeMap(() => innerObservable));
       // just subscribe to all observables
-      expectObservable(concatObservable).toBe('--c-cd-d-|', values);
+      expectObservable(mergeMapObservable).toBe('--c-cd-d-|', values);
     });
   });
 
   it('concatMap will keep order and handle next observable only after current observable is done', () => {
     testScheduler.run(({ cold, expectObservable }) => {
       const outterObservable = cold('a-b-|', values);
-      const innerObservable = cold('--c--d-|', values);
+      const innerObservable = cold(' --c--d-|', values);
       const concatObservable = outterObservable.pipe(concatMap(() => innerObservable));
       // keep observable order, b after a
       expectObservable(concatObservable).toBe('--c--d---c--d-|', values);
@@ -237,7 +236,7 @@ describe('test flatten startegies with marble test', () => {
   it('switchMap will cancel current observable when other observable come', () => {
     testScheduler.run(({ cold, expectObservable }) => {
       const outterObservable = cold('a---b-|', values);
-      const innerObservable = cold('--c--d-|', values);
+      const innerObservable = cold(' --c--d-|', values);
       const concatObservable = outterObservable.pipe(switchMap(() => innerObservable));
       // cut off a's trigger and response to b's trigger
       expectObservable(concatObservable).toBe('--c---c--d-|', values);
@@ -247,7 +246,7 @@ describe('test flatten startegies with marble test', () => {
   it('exhaustMap will ignore other observable until current observable is done', () => {
     testScheduler.run(({ cold, expectObservable }) => {
       const outterObservable = cold('a-b-----c-|', values);
-      const innerObservable = cold('--c--d-|', values);
+      const innerObservable = cold(' --c--d-|', values);
       const concatObservable = outterObservable.pipe(exhaustMap(() => innerObservable));
       // ignore b's trigger
       expectObservable(concatObservable).toBe('--c--d----c--d-|', values);
